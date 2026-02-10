@@ -1,7 +1,10 @@
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router'
 
 import type { Route } from './+types/root'
+import { sessionMiddleware } from '~/lib/auth/middleware'
 import './app.css'
+
+export const middleware: Route.MiddlewareFunction[] = [sessionMiddleware]
 
 export const links: Route.LinksFunction = () => [
   { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
