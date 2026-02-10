@@ -1,42 +1,26 @@
-import { Outlet, redirect } from 'react-router'
+import { isRouteErrorResponse, Outlet } from 'react-router'
 
 import type { Route } from './+types/_layout'
-import { requireAuth } from '~/lib/auth/rbac'
-import { db } from '~/lib/db'
-import { member } from '~/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { orgMemberMiddleware } from '~/lib/auth/middleware'
+import { orgContext, userContext } from '~/lib/auth/context'
 import { AppShell } from '~/components/layout/app-shell'
+import { ErrorContent } from '~/components/brand/error-page'
 
-export async function loader({ context }: Route.LoaderArgs) {
-  const { session, user } = requireAuth(context)
+export const middleware: Route.MiddlewareFunction[] = [orgMemberMiddleware]
 
-  const activeOrgId = session.session.activeOrganizationId
-
-  // No active org → send to onboarding
-  if (!activeOrgId) {
-    const memberships = await db.select().from(member).where(eq(member.userId, user.id)).limit(1)
-
-    if (memberships.length === 0) {
-      throw redirect('/onboarding')
-    }
-
-    throw redirect('/onboarding')
-  }
-
-  // Fetch org member role
-  const [memberRow] = await db.select().from(member).where(eq(member.userId, user.id)).limit(1)
-
-  const orgRole = memberRow?.role as string | undefined
+export function loader({ context }: Route.LoaderArgs) {
+  const org = context.get(orgContext)
+  const user = context.get(userContext)
 
   return {
     user: {
       id: user.id,
       name: user.name,
       email: user.email,
-      image: user.image ?? null,
+      image: null as string | null,
     },
-    orgId: activeOrgId,
-    isOrgAdmin: orgRole === 'owner' || orgRole === 'admin',
+    orgId: org.orgId,
+    isOrgAdmin: org.effectiveRole === 'org_admin',
   }
 }
 
@@ -46,4 +30,33 @@ export default function ProtectedLayout({ loaderData }: Route.ComponentProps) {
       <Outlet />
     </AppShell>
   )
+}
+
+export function ErrorBoundary({ error, loaderData }: Route.ErrorBoundaryProps) {
+  const errorContent = isRouteErrorResponse(error) ? (
+    <ErrorContent
+      title={error.status === 404 ? 'Página não encontrada' : 'Algo correu mal'}
+      message={
+        error.status === 404
+          ? 'A página que procura não existe ou foi movida.'
+          : error.statusText || 'Ocorreu um erro inesperado.'
+      }
+    />
+  ) : (
+    <ErrorContent
+      title="Algo correu mal"
+      message="Ocorreu um erro inesperado."
+      stack={import.meta.env.DEV && error instanceof Error ? error.stack : undefined}
+    />
+  )
+
+  if (loaderData) {
+    return (
+      <AppShell user={loaderData.user} isOrgAdmin={loaderData.isOrgAdmin}>
+        {errorContent}
+      </AppShell>
+    )
+  }
+
+  return errorContent
 }

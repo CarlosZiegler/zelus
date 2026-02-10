@@ -1,0 +1,316 @@
+import { redirect, Form, useFetcher, Link } from 'react-router'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { ArrowLeft02Icon, UserAdd01Icon, UserMultiple02Icon } from '@hugeicons/core-free-icons'
+
+import type { Route } from './+types/$id'
+import { orgContext, userContext } from '~/lib/auth/context'
+import { getFractionRole } from '~/lib/auth/rbac'
+import { getFraction, updateFraction, deleteFraction } from '~/lib/services/fractions'
+import { listFractionMembers } from '~/lib/services/associations'
+import { createFractionInvite } from '~/lib/services/invites'
+import { Button } from '~/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
+import { Input } from '~/components/ui/input'
+import { Badge } from '~/components/ui/badge'
+import { Field, FieldLabel } from '~/components/ui/field'
+import { Textarea } from '~/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '~/components/ui/alert-dialog'
+
+export function meta({ data }: Route.MetaArgs) {
+  const label = data?.fraction?.label ?? 'Fração'
+  return [{ title: `${label} — Zelus` }]
+}
+
+export async function loader({ params, context }: Route.LoaderArgs) {
+  const { orgId, effectiveRole } = context.get(orgContext)
+  const user = context.get(userContext)
+  const fraction = await getFraction(orgId, params.id)
+
+  if (!fraction) throw new Response('Not Found', { status: 404 })
+
+  const isAdmin = effectiveRole === 'org_admin'
+  const fractionRole = isAdmin ? null : await getFractionRole(orgId, user.id, params.id)
+
+  if (!isAdmin && !fractionRole) {
+    throw new Response('Forbidden', { status: 403 })
+  }
+
+  const members = await listFractionMembers(orgId, params.id)
+  const canInvite = isAdmin || fractionRole === 'fraction_owner_admin'
+
+  return { fraction, members, isAdmin, canInvite }
+}
+
+export async function action({ request, params, context }: Route.ActionArgs) {
+  const { orgId, effectiveRole } = context.get(orgContext)
+  const user = context.get(userContext)
+  const formData = await request.formData()
+  const intent = formData.get('intent')
+
+  if (intent === 'update') {
+    if (effectiveRole !== 'org_admin') {
+      throw new Response('Forbidden', { status: 403 })
+    }
+
+    const label = formData.get('label') as string
+    const description = formData.get('description') as string
+
+    if (!label?.trim()) return { error: 'Nome obrigatório.' }
+
+    await updateFraction(orgId, params.id, { label, description: description || null }, user.id)
+    return { success: true }
+  }
+
+  if (intent === 'delete') {
+    if (effectiveRole !== 'org_admin') {
+      throw new Response('Forbidden', { status: 403 })
+    }
+
+    try {
+      await deleteFraction(orgId, params.id, user.id)
+      return redirect('/fractions')
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Erro ao apagar fração.' }
+    }
+  }
+
+  if (intent === 'invite-member') {
+    const isAdmin = effectiveRole === 'org_admin'
+    const fractionRole = isAdmin ? null : await getFractionRole(orgId, user.id, params.id)
+    const canInvite = isAdmin || fractionRole === 'fraction_owner_admin'
+
+    if (!canInvite) throw new Response('Forbidden', { status: 403 })
+
+    const email = formData.get('email') as string
+    const role = (formData.get('role') as string) || 'fraction_member'
+
+    if (!email?.trim()) return { error: 'E-mail obrigatório.' }
+    if (role !== 'fraction_owner_admin' && role !== 'fraction_member') {
+      return { error: 'Papel inválido.' }
+    }
+
+    try {
+      await createFractionInvite(orgId, params.id, email, role, user.id)
+      return { success: true, message: 'Convite enviado.' }
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Erro ao enviar convite.' }
+    }
+  }
+
+  return { error: 'Ação desconhecida.' }
+}
+
+export default function FractionDetailPage({ loaderData, actionData }: Route.ComponentProps) {
+  const { fraction, members, isAdmin, canInvite } = loaderData
+  const fetcher = useFetcher()
+
+  return (
+    <div>
+      <Button render={<Link to="/fractions" />} variant="ghost">
+        <HugeiconsIcon icon={ArrowLeft02Icon} data-icon="inline-start" size={16} strokeWidth={2} />
+        Voltar
+      </Button>
+
+      {/* Feedback messages */}
+      {actionData?.error && (
+        <div className="bg-destructive/10 text-destructive mt-4 rounded-xl px-4 py-3 text-sm">
+          {actionData.error}
+        </div>
+      )}
+      {actionData?.success && 'message' in actionData && (
+        <div className="bg-primary/10 text-primary mt-4 rounded-xl px-4 py-3 text-sm">
+          {actionData.message}
+        </div>
+      )}
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-5">
+        {/* Left column: Info/Edit + Invite */}
+        <div className="flex flex-col gap-5 lg:col-span-2">
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados da fração</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form method="post" className="grid gap-4">
+                  <input type="hidden" name="intent" value="update" />
+                  <Field>
+                    <FieldLabel htmlFor="label">Nome</FieldLabel>
+                    <Input id="label" name="label" defaultValue={fraction.label} required />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="description">Descrição</FieldLabel>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      defaultValue={fraction.description ?? ''}
+                      rows={3}
+                    />
+                  </Field>
+                  <div className="flex items-center justify-between pt-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger render={<Button type="button" variant="destructive" />}>
+                        Apagar
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Apagar fração?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação não pode ser revertida. Todos os dados da fração serão
+                            apagados.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <fetcher.Form method="post">
+                            <input type="hidden" name="intent" value="delete" />
+                            <AlertDialogAction type="submit">Apagar</AlertDialogAction>
+                          </fetcher.Form>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <Button type="submit">Guardar</Button>
+                  </div>
+                </Form>
+              </CardContent>
+            </Card>
+          )}
+
+          {canInvite && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Convidar membro</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form method="post" className="grid gap-4">
+                  <input type="hidden" name="intent" value="invite-member" />
+                  <Field>
+                    <FieldLabel htmlFor="invite-email">E-mail</FieldLabel>
+                    <Input
+                      id="invite-email"
+                      name="email"
+                      type="email"
+                      placeholder="email@exemplo.com"
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="invite-role">Papel</FieldLabel>
+                    <Select name="role" defaultValue="fraction_member">
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fraction_member">Membro</SelectItem>
+                        <SelectItem value="fraction_owner_admin">Admin da fração</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Button type="submit">
+                    <HugeiconsIcon
+                      icon={UserAdd01Icon}
+                      data-icon="inline-start"
+                      size={16}
+                      strokeWidth={2}
+                    />
+                    Enviar convite
+                  </Button>
+                </Form>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right column: Members */}
+        <div className="lg:col-span-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Membros
+                <span className="text-muted-foreground ml-2 text-sm font-normal">
+                  {members.length}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {members.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-10">
+                  <div className="bg-muted flex size-12 items-center justify-center rounded-2xl">
+                    <HugeiconsIcon
+                      icon={UserMultiple02Icon}
+                      size={20}
+                      strokeWidth={1.5}
+                      className="text-muted-foreground"
+                    />
+                  </div>
+                  <p className="text-muted-foreground text-sm">Nenhum membro associado</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {members.map((m) => (
+                    <div key={m.id} className="flex items-center gap-3 px-5 py-3.5">
+                      <MemberAvatar name={m.userName} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{m.userName}</p>
+                        <p className="text-muted-foreground truncate text-sm">{m.userEmail}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <RoleBadge role={m.role} />
+                        <StatusBadge status={m.status} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MemberAvatar({ name }: { name: string }) {
+  const initials = name
+    .split(' ')
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+
+  return (
+    <div className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+      {initials}
+    </div>
+  )
+}
+
+function RoleBadge({ role }: { role: string }) {
+  if (role === 'fraction_owner_admin') {
+    return <Badge variant="default">Admin</Badge>
+  }
+  return <Badge variant="secondary">Membro</Badge>
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'approved') return <Badge variant="outline">Aprovado</Badge>
+  if (status === 'pending') return <Badge variant="secondary">Pendente</Badge>
+  return <Badge variant="destructive">Rejeitado</Badge>
+}

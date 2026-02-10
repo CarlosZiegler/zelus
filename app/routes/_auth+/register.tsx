@@ -83,7 +83,7 @@ export default function RegisterPage({ actionData }: Route.ComponentProps) {
         <CardContent>
           <form onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
             {actionData?.error && (
-              <div className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm">
+              <div className="bg-destructive/10 text-destructive rounded-xl px-3 py-2 text-sm">
                 {actionData.error}
               </div>
             )}

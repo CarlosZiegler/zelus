@@ -108,3 +108,28 @@ export async function requireRole(context: RbacContext, roles: UserRole[]): Prom
   }
   return result
 }
+
+/**
+ * Get user's role for a specific fraction.
+ * Returns the fraction role or null if not associated.
+ */
+export async function getFractionRole(
+  orgId: string,
+  userId: string,
+  fractionId: string,
+): Promise<'fraction_owner_admin' | 'fraction_member' | null> {
+  const [row] = await db
+    .select({ role: userFractions.role })
+    .from(userFractions)
+    .where(
+      and(
+        eq(userFractions.orgId, orgId),
+        eq(userFractions.userId, userId),
+        eq(userFractions.fractionId, fractionId),
+        eq(userFractions.status, 'approved'),
+      ),
+    )
+    .limit(1)
+
+  return (row?.role as 'fraction_owner_admin' | 'fraction_member') ?? null
+}

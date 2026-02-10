@@ -1,19 +1,19 @@
-import { useEffect } from 'react'
-import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, Controller } from 'react-hook-form'
-import { Form, Link, redirect, useNavigate, useNavigation, useSubmit } from 'react-router'
+import { useEffect } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { Link, redirect, useNavigate, useNavigation, useSubmit } from 'react-router'
+import { z } from 'zod'
 
-import type { Route } from './+types/login'
-import { auth } from '~/lib/auth/auth.server'
-import { authClient, signIn } from '~/lib/auth/auth.client'
 import { AzulejoPattern } from '~/components/brand/azulejo-pattern'
 import { ZelusLogoTile } from '~/components/brand/zelus-logo-tile'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
-import { Field, FieldLabel, FieldError } from '~/components/ui/field'
+import { Field, FieldError, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Separator } from '~/components/ui/separator'
+import { authClient, signIn } from '~/lib/auth/auth.client'
+import { auth } from '~/lib/auth/auth.server'
+import type { Route } from './+types/login'
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -94,7 +94,7 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
         <CardContent>
           <form onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
             {actionData?.error && (
-              <div className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm">
+              <div className="bg-destructive/10 text-destructive rounded-xl px-3 py-2 text-sm">
                 {actionData.error}
               </div>
             )}

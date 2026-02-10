@@ -2,6 +2,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 
 import type { Route } from './+types/root'
 import { sessionMiddleware } from '~/lib/auth/middleware'
+import { ErrorPage } from '~/components/brand/error-page'
 import './app.css'
 
 export const middleware: Route.MiddlewareFunction[] = [sessionMiddleware]
@@ -43,28 +44,24 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = 'Oops!'
-  let details = 'An unexpected error occurred.'
-  let stack: string | undefined
-
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? '404' : 'Error'
-    details =
-      error.status === 404 ? 'The requested page could not be found.' : error.statusText || details
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message
-    stack = error.stack
+    return (
+      <ErrorPage
+        title={error.status === 404 ? 'Página não encontrada' : 'Algo correu mal'}
+        message={
+          error.status === 404
+            ? 'A página que procura não existe ou foi movida.'
+            : error.statusText || 'Ocorreu um erro inesperado.'
+        }
+      />
+    )
   }
 
   return (
-    <main className="container mx-auto p-4 pt-16">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full overflow-x-auto p-4">
-          <code>{stack}</code>
-        </pre>
-      )}
-    </main>
+    <ErrorPage
+      title="Algo correu mal"
+      message="Ocorreu um erro inesperado."
+      stack={import.meta.env.DEV && error instanceof Error ? error.stack : undefined}
+    />
   )
 }

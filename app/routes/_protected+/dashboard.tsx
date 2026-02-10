@@ -1,5 +1,9 @@
+import { HugeiconsIcon } from '@hugeicons/react'
+import { Ticket02Icon, Alert02Icon, Building06Icon } from '@hugeicons/core-free-icons'
+
 import type { Route } from './+types/dashboard'
-import { requireOrgMember } from '~/lib/auth/rbac'
+import { orgContext } from '~/lib/auth/context'
+import { CardLink } from '~/components/brand/card-link'
 import { db } from '~/lib/db'
 import { tickets, fractions } from '~/lib/db/schema'
 import { eq, and, count } from 'drizzle-orm'
@@ -9,26 +13,18 @@ export function meta(_args: Route.MetaArgs) {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { org, effectiveRole } = await requireOrgMember(context)
+  const { orgId } = context.get(orgContext)
 
-  const [ticketCount] = await db
-    .select({ count: count() })
-    .from(tickets)
-    .where(eq(tickets.orgId, org.id))
-
-  const [openTickets] = await db
-    .select({ count: count() })
-    .from(tickets)
-    .where(and(eq(tickets.orgId, org.id), eq(tickets.status, 'open')))
-
-  const [fractionCount] = await db
-    .select({ count: count() })
-    .from(fractions)
-    .where(eq(fractions.orgId, org.id))
+  const [[ticketCount], [openTickets], [fractionCount]] = await Promise.all([
+    db.select({ count: count() }).from(tickets).where(eq(tickets.orgId, orgId)),
+    db
+      .select({ count: count() })
+      .from(tickets)
+      .where(and(eq(tickets.orgId, orgId), eq(tickets.status, 'open'))),
+    db.select({ count: count() }).from(fractions).where(eq(fractions.orgId, orgId)),
+  ])
 
   return {
-    orgName: org.name,
-    role: effectiveRole,
     stats: {
       totalTickets: ticketCount?.count ?? 0,
       openTickets: openTickets?.count ?? 0,
@@ -38,27 +34,49 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function DashboardPage({ loaderData }: Route.ComponentProps) {
-  const { orgName, stats } = loaderData
+  const { stats } = loaderData
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">{orgName}</h1>
-      <p className="text-muted-foreground mt-1 text-sm">Painel de gestão</p>
+      <h1 className="text-lg font-semibold tracking-tight">Painel</h1>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Ocorrências" value={stats.totalTickets} />
-        <StatCard label="Abertas" value={stats.openTickets} />
-        <StatCard label="Frações" value={stats.totalFractions} />
+      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+        <StatTile
+          label="Ocorrências"
+          value={stats.totalTickets}
+          icon={Ticket02Icon}
+          href="/tickets"
+        />
+        <StatTile label="Abertas" value={stats.openTickets} icon={Alert02Icon} href="/tickets" />
+        <StatTile
+          label="Frações"
+          value={stats.totalFractions}
+          icon={Building06Icon}
+          href="/fractions"
+        />
       </div>
     </div>
   )
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatTile({
+  label,
+  value,
+  icon,
+  href,
+}: {
+  label: string
+  value: number
+  icon: Parameters<typeof HugeiconsIcon>[0]['icon']
+  href: string
+}) {
   return (
-    <div className="ring-foreground/10 bg-card rounded-xl px-4 py-4 ring-1">
-      <p className="text-muted-foreground text-sm">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
-    </div>
+    <CardLink to={href} className="p-5">
+      <div className="flex items-start justify-between">
+        <p className="text-3xl font-medium tracking-tight tabular-nums">{value}</p>
+        <HugeiconsIcon icon={icon} size={20} strokeWidth={1.5} className="text-muted-foreground" />
+      </div>
+      <p className="text-muted-foreground mt-1 text-sm font-medium">{label}</p>
+    </CardLink>
   )
 }

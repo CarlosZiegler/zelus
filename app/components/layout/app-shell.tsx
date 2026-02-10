@@ -1,5 +1,7 @@
-import { Sidebar } from './sidebar'
+import { AppSidebar } from './app-sidebar'
 import { Header } from './header'
+import { AzulejoPattern } from '~/components/brand/azulejo-pattern'
+import { SidebarProvider, SidebarInset } from '~/components/ui/sidebar'
 
 type AppShellProps = {
   user: {
@@ -14,12 +16,13 @@ type AppShellProps = {
 
 export function AppShell({ user, isOrgAdmin, children }: AppShellProps) {
   return (
-    <div className="flex min-h-svh">
-      <Sidebar isOrgAdmin={isOrgAdmin} />
-      <div className="flex flex-1 flex-col">
-        <Header user={user} />
-        <main className="flex-1 px-4 py-6 lg:px-8">{children}</main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar user={user} isOrgAdmin={isOrgAdmin} />
+      <SidebarInset className="relative overflow-hidden">
+        <AzulejoPattern baseOpacity={0.04} hoverOpacity={0.15} />
+        <Header />
+        <div className="relative flex-1 px-4 py-6 lg:px-8">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

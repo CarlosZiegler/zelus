@@ -6,14 +6,24 @@ import { useEffect, useState } from 'react'
 const TILE_SIZE = 64
 const STEP = TILE_SIZE + 1
 
-function Tile({ x, y }: { x: number; y: number }) {
+function Tile({
+  x,
+  y,
+  baseOpacity,
+  hoverOpacity,
+}: {
+  x: number
+  y: number
+  baseOpacity: number
+  hoverOpacity: number
+}) {
   const cx = x + TILE_SIZE / 2
   const cy = y + TILE_SIZE / 2
 
   return (
     <motion.g
-      initial={{ opacity: 0.07 }}
-      whileHover={{ opacity: 0.35 }}
+      initial={{ opacity: baseOpacity }}
+      whileHover={{ opacity: hoverOpacity }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
     >
       {/* Invisible hit area for hover detection */}
@@ -70,7 +80,13 @@ function Tile({ x, y }: { x: number; y: number }) {
   )
 }
 
-export function AzulejoPattern() {
+export function AzulejoPattern({
+  baseOpacity = 0.07,
+  hoverOpacity = 0.35,
+}: {
+  baseOpacity?: number
+  hoverOpacity?: number
+} = {}) {
   const [grid, setGrid] = useState({ cols: 0, rows: 0 })
 
   useEffect(() => {
@@ -98,7 +114,13 @@ export function AzulejoPattern() {
     <div className="text-primary absolute inset-0 overflow-hidden">
       <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
         {tiles.map((tile) => (
-          <Tile key={tile.key} x={tile.x} y={tile.y} />
+          <Tile
+            key={tile.key}
+            x={tile.x}
+            y={tile.y}
+            baseOpacity={baseOpacity}
+            hoverOpacity={hoverOpacity}
+          />
         ))}
       </svg>
     </div>

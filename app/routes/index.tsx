@@ -17,9 +17,11 @@ export default function Home() {
         <div className="relative z-10 max-w-lg text-center">
           <div className="mb-6 flex flex-col items-center gap-3">
             <ZelusLogoTile size={64} className="text-primary" />
-            <span className="text-2xl font-semibold tracking-tight">Zelus</span>
+            <span className="text-3xl font-semibold tracking-tight">zelus</span>
           </div>
-          <p className="text-muted-foreground text-lg">Gestão de condomínios, simplificada.</p>
+          <p className="text-muted-foreground text-lg font-semibold">
+            Gestão de condomínios, simplificada.
+          </p>
           <p className="text-muted-foreground mt-3">
             Centralize ocorrências, manutenções e fornecedores num único lugar. Sem ruído, sem
             complicações.
@@ -27,7 +29,7 @@ export default function Home() {
           <div className="mt-8 flex justify-center gap-3">
             <a
               href="/login"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center rounded-full px-5 text-sm font-medium"
             >
               Começar
             </a>
@@ -35,7 +37,7 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="bg-background/80 text-muted-foreground relative z-10 border-t px-6 py-4 text-center text-xs backdrop-blur-sm">
+      <footer className="bg-background/80 text-muted-foreground relative z-10 border-t px-6 py-4 text-center text-sm backdrop-blur-sm">
         Zelus &copy; {new Date().getFullYear()}
       </footer>
     </div>

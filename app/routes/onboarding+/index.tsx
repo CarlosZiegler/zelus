@@ -214,7 +214,7 @@ export default function OnboardingPage() {
         </CardHeader>
         <CardContent>
           {serverError && (
-            <div className="bg-destructive/10 text-destructive mb-4 rounded-md px-3 py-2 text-sm">
+            <div className="bg-destructive/10 text-destructive mb-4 rounded-xl px-3 py-2 text-sm">
               {serverError}
             </div>
           )}
@@ -308,18 +308,13 @@ export default function OnboardingPage() {
                     )}
                   />
                   {fields.length > 1 && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
+                    <Button type="button" variant="ghost" onClick={() => remove(index)}>
                       ✕
                     </Button>
                   )}
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => append({ value: '' })}
-              >
+              <Button type="button" variant="outline" onClick={() => append({ value: '' })}>
                 + Adicionar fração
               </Button>
               <div className="flex gap-2">
