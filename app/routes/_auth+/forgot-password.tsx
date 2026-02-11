@@ -33,14 +33,18 @@ export async function action({ request }: Route.ActionArgs) {
 
   const { email } = parsed.data
 
-  // Note: In production you must wire an email provider (Resend) so users actually receive the link.
-  await auth.api.requestPasswordReset({
-    body: {
-      email,
-      redirectTo: '/reset-password',
-    },
-    headers: request.headers,
-  })
+  try {
+    // Note: In production you must wire an email provider (Resend) so users actually receive the link.
+    await auth.api.requestPasswordReset({
+      body: {
+        email,
+        redirectTo: '/reset-password',
+      },
+      headers: request.headers,
+    })
+  } catch {
+    // Swallow — never reveal whether the email exists.
+  }
 
   return redirect('/forgot-password?sent=1')
 }

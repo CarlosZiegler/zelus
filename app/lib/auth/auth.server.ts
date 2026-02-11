@@ -23,7 +23,9 @@ export const auth = betterAuth({
 
     // TODO: integrate Resend to send password reset emails in production.
     sendResetPassword: async ({ user, url }) => {
-      console.log(`[auth] Password reset for ${user.email}: ${url}`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[auth] Password reset for ${user.email}: ${url}`)
+      }
     },
 
     // Security: revoke sessions on password reset.
@@ -34,7 +36,9 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
       // TODO: integrate Resend to send verification emails
-      console.log(`[auth] Verification email for ${user.email}: ${url}`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[auth] Verification email for ${user.email}: ${url}`)
+      }
     },
   },
 
