@@ -15,10 +15,8 @@ export default function MaintenancePage() {
       </header>
 
       <div className="bg-card ring-foreground/10 rounded-2xl p-5 ring-1">
-        <p className="text-sm">
-          Ainda não há registos de manutenção nesta versão. (Sugestão: lista + filtro por fornecedor
-          + upload de fotos/documentos por ocorrência.)
-        </p>
+        {/* Empty state: implementation notes belong in issues/docs, not the UI. */}
+        <p className="text-sm">Ainda não há registos de manutenção nesta versão.</p>
       </div>
     </div>
   )

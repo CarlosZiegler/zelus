@@ -51,7 +51,12 @@ export async function action({ request }: Route.ActionArgs) {
       return { error: body?.message || 'Não foi possível alterar a palavra‑passe.' }
     }
 
-    return { success: 'Palavra‑passe alterada com sucesso.' }
+    const headers = new Headers()
+    for (const cookie of res.headers.getSetCookie()) {
+      headers.append('set-cookie', cookie)
+    }
+
+    return Response.json({ success: 'Palavra‑passe alterada com sucesso.' }, { headers })
   }
 
   if (intent === 'deleteAccount') {
@@ -72,7 +77,12 @@ export async function action({ request }: Route.ActionArgs) {
       return { error: body?.message || 'Não foi possível apagar a conta.' }
     }
 
-    return redirect('/')
+    const headers = new Headers()
+    for (const cookie of res.headers.getSetCookie()) {
+      headers.append('set-cookie', cookie)
+    }
+
+    return redirect('/', { headers })
   }
 
   return { error: 'Ação inválida.' }
@@ -81,7 +91,10 @@ export async function action({ request }: Route.ActionArgs) {
 export default function AccountSettingsPage({ actionData }: Route.ComponentProps) {
   const navigation = useNavigation()
   const submit = useSubmit()
-  const isSubmitting = navigation.state === 'submitting'
+  const submittingIntent =
+    navigation.state === 'submitting' ? String(navigation.formData?.get('_intent') || '') : ''
+  const isChangingPassword = submittingIntent === 'changePassword'
+  const isDeletingAccount = submittingIntent === 'deleteAccount'
 
   const changeForm = useForm<ChangePasswordValues>({
     resolver: zodResolver(changePasswordSchema),
@@ -164,8 +177,8 @@ export default function AccountSettingsPage({ actionData }: Route.ComponentProps
               )}
             />
 
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'A guardar…' : 'Guardar'}
+            <Button type="submit" disabled={isChangingPassword}>
+              {isChangingPassword ? 'A guardar…' : 'Guardar'}
             </Button>
           </form>
         </CardContent>
@@ -225,8 +238,8 @@ export default function AccountSettingsPage({ actionData }: Route.ComponentProps
               )}
             />
 
-            <Button type="submit" variant="destructive" disabled={isSubmitting}>
-              {isSubmitting ? 'A apagar…' : 'Apagar conta'}
+            <Button type="submit" variant="destructive" disabled={isDeletingAccount}>
+              {isDeletingAccount ? 'A apagar…' : 'Apagar conta'}
             </Button>
           </form>
         </CardContent>
