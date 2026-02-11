@@ -20,6 +20,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
+
+    // TODO: integrate Resend to send password reset emails in production.
+    sendResetPassword: async ({ user, url }) => {
+      console.log(`[auth] Password reset for ${user.email}: ${url}`)
+    },
+
+    // Security: revoke sessions on password reset.
+    revokeSessionsOnPasswordReset: true,
   },
 
   emailVerification: {
