@@ -1,4 +1,5 @@
-import { NavLink, Form } from 'react-router'
+import { NavLink, Form, useLocation } from 'react-router'
+import { Collapsible } from '@base-ui/react/collapsible'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
   DashboardSquare01Icon,
@@ -8,6 +9,7 @@ import {
   WrenchIcon,
   Settings02Icon,
   Logout03Icon,
+  ArrowDown01Icon,
 } from '@hugeicons/core-free-icons'
 
 import { ZelusLogoTile } from '~/components/brand/zelus-logo-tile'
@@ -18,11 +20,13 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from '~/components/ui/sidebar'
 
@@ -42,9 +46,13 @@ const mainNav = [
 const adminNav = [
   { label: 'Associações', to: '/admin/associations' },
   { label: 'Convites', to: '/admin/invites' },
+  { label: 'Categorias', to: '/admin/categories' },
 ]
 
 export function AppSidebar({ user, isOrgAdmin }: AppSidebarProps) {
+  const location = useLocation()
+  const isAdminRoute = location.pathname.startsWith('/admin')
+
   return (
     <Sidebar variant="floating">
       <SidebarHeader>
@@ -70,36 +78,45 @@ export function AppSidebar({ user, isOrgAdmin }: AppSidebarProps) {
                   </NavLink>
                 </SidebarMenuItem>
               ))}
+
+              {isOrgAdmin && (
+                <Collapsible.Root defaultOpen={isAdminRoute}>
+                  <SidebarMenuItem>
+                    <Collapsible.Trigger
+                      render={
+                        <SidebarMenuButton tooltip="Administração">
+                          <HugeiconsIcon icon={Settings02Icon} size={16} strokeWidth={2} />
+                          <span>Administração</span>
+                          <HugeiconsIcon
+                            icon={ArrowDown01Icon}
+                            size={14}
+                            strokeWidth={2}
+                            className="text-muted-foreground ml-auto transition-transform group-data-[panel-open]:rotate-180"
+                          />
+                        </SidebarMenuButton>
+                      }
+                    />
+                    <Collapsible.Panel>
+                      <SidebarMenuSub>
+                        {adminNav.map((item) => (
+                          <SidebarMenuSubItem key={item.to}>
+                            <NavLink to={item.to}>
+                              {({ isActive }) => (
+                                <SidebarMenuSubButton isActive={isActive}>
+                                  <span>{item.label}</span>
+                                </SidebarMenuSubButton>
+                              )}
+                            </NavLink>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </Collapsible.Panel>
+                  </SidebarMenuItem>
+                </Collapsible.Root>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {isOrgAdmin && (
-          <>
-            <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>
-                <HugeiconsIcon icon={Settings02Icon} size={14} strokeWidth={2} />
-                <span>Administração</span>
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {adminNav.map((item) => (
-                    <SidebarMenuItem key={item.to}>
-                      <NavLink to={item.to}>
-                        {({ isActive }) => (
-                          <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                            <span>{item.label}</span>
-                          </SidebarMenuButton>
-                        )}
-                      </NavLink>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
       </SidebarContent>
 
       <SidebarFooter>

@@ -1,7 +1,22 @@
-import { pgTable, text, timestamp, integer, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, boolean, index } from 'drizzle-orm/pg-core'
 
 import { organization, user } from './auth'
 import { fractions } from './fractions'
+
+export const ticketCategories = pgTable(
+  'ticket_categories',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => organization.id),
+    label: text('label').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('ticket_categories_org_idx').on(t.orgId)],
+)
 
 export const tickets = pgTable(
   'tickets',
@@ -13,6 +28,7 @@ export const tickets = pgTable(
       .notNull()
       .references(() => organization.id),
     fractionId: text('fraction_id').references(() => fractions.id),
+    categoryId: text('category_id').references(() => ticketCategories.id),
     createdBy: text('created_by')
       .notNull()
       .references(() => user.id),
@@ -21,6 +37,8 @@ export const tickets = pgTable(
     status: text('status', { enum: ['open', 'in_progress', 'resolved', 'closed'] })
       .notNull()
       .default('open'),
+    priority: text('priority', { enum: ['urgent', 'high', 'medium', 'low'] }),
+    private: boolean('private').notNull().default(false),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at'),
   },
@@ -72,4 +90,28 @@ export const ticketAttachments = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [index('ticket_attachments_org_ticket_idx').on(t.orgId, t.ticketId)],
+)
+
+export const ticketEvents = pgTable(
+  'ticket_events',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => organization.id),
+    ticketId: text('ticket_id')
+      .notNull()
+      .references(() => tickets.id),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id),
+    fromStatus: text('from_status', {
+      enum: ['open', 'in_progress', 'resolved', 'closed'],
+    }).notNull(),
+    toStatus: text('to_status', { enum: ['open', 'in_progress', 'resolved', 'closed'] }).notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('ticket_events_ticket_idx').on(t.ticketId)],
 )

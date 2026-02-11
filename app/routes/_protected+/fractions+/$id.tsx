@@ -211,18 +211,7 @@ export default function FractionDetailPage({ loaderData, actionData }: Route.Com
                       required
                     />
                   </Field>
-                  <Field>
-                    <FieldLabel htmlFor="invite-role">Papel</FieldLabel>
-                    <Select name="role" defaultValue="fraction_member">
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fraction_member">Membro</SelectItem>
-                        <SelectItem value="fraction_owner_admin">Admin da fração</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
+                  <FractionRoleSelect />
                   <Button type="submit">
                     <HugeiconsIcon
                       icon={UserAdd01Icon}
@@ -313,4 +302,29 @@ function StatusBadge({ status }: { status: string }) {
   if (status === 'approved') return <Badge variant="outline">Aprovado</Badge>
   if (status === 'pending') return <Badge variant="secondary">Pendente</Badge>
   return <Badge variant="destructive">Rejeitado</Badge>
+}
+
+const fractionRoleItems = [
+  { label: 'Membro', value: 'fraction_member' },
+  { label: 'Admin da fração', value: 'fraction_owner_admin' },
+]
+
+function FractionRoleSelect() {
+  return (
+    <Field>
+      <FieldLabel htmlFor="invite-role">Papel</FieldLabel>
+      <Select name="role" defaultValue="fraction_member" items={fractionRoleItems}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {fractionRoleItems.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  )
 }

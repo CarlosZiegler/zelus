@@ -62,6 +62,21 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function AssociationsPage({ loaderData }: Route.ComponentProps) {
   const { associations } = loaderData
 
+  return (
+    <div>
+      <h1 className="text-lg font-semibold tracking-tight">Associações</h1>
+      <div className="mt-6">
+        <AssociationsList associations={associations} />
+      </div>
+    </div>
+  )
+}
+
+function AssociationsList({
+  associations,
+}: {
+  associations: Awaited<ReturnType<typeof listPendingAssociations>>
+}) {
   if (associations.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-12">

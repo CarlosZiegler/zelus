@@ -85,70 +85,89 @@ export default function InvitesPage({ loaderData, actionData }: Route.ComponentP
   const { invites, fractions } = loaderData
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
-      {/* Create Invite */}
-      <div className="lg:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Novo convite</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {actionData?.error && (
-              <div className="bg-destructive/10 text-destructive mb-3 rounded-xl px-3 py-2 text-sm">
-                {actionData.error}
-              </div>
-            )}
-            {actionData?.success && (
-              <div className="bg-primary/10 text-primary mb-3 rounded-xl px-3 py-2 text-sm">
-                Convite criado.
-              </div>
-            )}
+    <div>
+      <h1 className="text-lg font-semibold tracking-tight">Convites</h1>
+      <div className="mt-6 grid gap-4 lg:grid-cols-5">
+        {/* Create Invite */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Novo convite</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {actionData?.error && (
+                <div className="bg-destructive/10 text-destructive mb-3 rounded-xl px-3 py-2 text-sm">
+                  {actionData.error}
+                </div>
+              )}
+              {actionData?.success && (
+                <div className="bg-primary/10 text-primary mb-3 rounded-xl px-3 py-2 text-sm">
+                  Convite criado.
+                </div>
+              )}
 
-            <InviteForm fractions={fractions} />
-          </CardContent>
-        </Card>
-      </div>
+              <InviteForm fractions={fractions} />
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Existing Invites */}
-      <div className="lg:col-span-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Convites enviados</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {invites.length === 0 ? (
-              <p className="text-muted-foreground px-4 py-6 text-center text-sm">
-                Nenhum convite enviado.
-              </p>
-            ) : (
-              <div className="divide-y">
-                {invites.map((invite) => (
-                  <div key={invite.id} className="flex items-center justify-between px-4 py-2.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{invite.email}</p>
-                      <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-sm">
-                        <span>
-                          {invite.type === 'org'
-                            ? 'Organização'
-                            : (invite.fractionLabel ?? 'Fração')}
-                        </span>
-                        <span>&middot;</span>
-                        <span>{roleLabel(invite.role)}</span>
+        {/* Existing Invites */}
+        <div className="lg:col-span-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Convites enviados</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {invites.length === 0 ? (
+                <p className="text-muted-foreground px-4 py-6 text-center text-sm">
+                  Nenhum convite enviado.
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {invites.map((invite) => (
+                    <div key={invite.id} className="flex items-center justify-between px-4 py-2.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{invite.email}</p>
+                        <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-sm">
+                          <span>
+                            {invite.type === 'org'
+                              ? 'Organização'
+                              : (invite.fractionLabel ?? 'Fração')}
+                          </span>
+                          <span>&middot;</span>
+                          <span>{roleLabel(invite.role)}</span>
+                        </div>
                       </div>
+                      <StatusBadge status={invite.status} />
                     </div>
-                    <StatusBadge status={invite.status} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
 }
 
+const intentItems = [
+  { label: 'Organização', value: 'create-org-invite' },
+  { label: 'Fração', value: 'create-fraction-invite' },
+]
+
+const roleItems = [
+  { label: 'Membro', value: 'fraction_member' },
+  { label: 'Admin organização', value: 'org_admin' },
+  { label: 'Admin fração', value: 'fraction_owner_admin' },
+]
+
 function InviteForm({ fractions }: { fractions: { id: string; label: string }[] }) {
+  const fractionItems = [
+    { label: '— Selecionar —', value: '' },
+    ...fractions.map((f) => ({ label: f.label, value: f.id })),
+  ]
+
   return (
     <Form method="post" className="grid gap-3">
       <Field>
@@ -164,27 +183,30 @@ function InviteForm({ fractions }: { fractions: { id: string; label: string }[] 
 
       <Field>
         <FieldLabel>Tipo</FieldLabel>
-        <Select name="intent" defaultValue="create-org-invite">
+        <Select name="intent" defaultValue="create-org-invite" items={intentItems}>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="create-org-invite">Organização</SelectItem>
-            <SelectItem value="create-fraction-invite">Fração</SelectItem>
+            {intentItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </Field>
 
       <Field>
         <FieldLabel>Fração</FieldLabel>
-        <Select name="fractionId" defaultValue="">
+        <Select name="fractionId" defaultValue="" items={fractionItems}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="— Selecionar —" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {fractions.map((f) => (
-              <SelectItem key={f.id} value={f.id}>
-                {f.label}
+            {fractionItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -193,14 +215,16 @@ function InviteForm({ fractions }: { fractions: { id: string; label: string }[] 
 
       <Field>
         <FieldLabel>Papel</FieldLabel>
-        <Select name="role" defaultValue="fraction_member">
+        <Select name="role" defaultValue="fraction_member" items={roleItems}>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="fraction_member">Membro</SelectItem>
-            <SelectItem value="org_admin">Admin organização</SelectItem>
-            <SelectItem value="fraction_owner_admin">Admin fração</SelectItem>
+            {roleItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </Field>
