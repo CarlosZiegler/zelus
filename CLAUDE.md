@@ -17,6 +17,30 @@ bun run typecheck    # Generate route types + tsc
 
 Add shadcn/ui components with `bunx shadcn@latest add [component-name]`.
 
+## Database Migrations
+
+All migration commands go through `scripts/db.ts`, a safety wrapper around Drizzle Kit.
+
+```bash
+bun run db:generate [name]   # Generate migration, scan for destructive ops
+bun run db:migrate           # Preview + apply pending migrations (local DB only)
+bun run db:check -- --all    # Scan all migrations for destructive ops (CI-friendly)
+bun run db:status            # Show applied/pending migration state
+bun run db:seed              # Seed demo data (local)
+bun run db:studio            # Open Drizzle Studio (local)
+```
+
+The wrapper enforces:
+
+- **Localhost guard**: `db:migrate` refuses non-local `DATABASE_URL` unless `--yes` is passed
+- **Destructive op scanning**: `DROP TABLE`, `DROP COLUMN`, `ALTER COLUMN TYPE`, `TRUNCATE`, `DELETE FROM` are errors that block migration; `DROP INDEX`, `RENAME TABLE/COLUMN`, `DROP CONSTRAINT` are warnings
+- **Preview before apply**: pending SQL is printed with highlighted issues before confirmation
+- **CI check gate**: `db:check` exits with code 1 if destructive operations are found
+
+For staging/production deployments, use `db:migrate:staging` or `db:migrate:prod` (these pass `--yes`).
+
+Do **not** use `drizzle-kit push` — use the generate + migrate workflow instead.
+
 ## Troubleshooting
 
 If `react-router typegen` gets stuck or fails with esbuild errors, remove `node_modules` and reinstall:
