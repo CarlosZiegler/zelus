@@ -2,7 +2,7 @@ name: Check Database Migration
 
 on:
   pull_request:
-    branches: [main, staging, demo]
+    branches: [main, staging]
     paths:
       - 'app/lib/db/schema.ts'
       - 'drizzle/**'

@@ -2,7 +2,7 @@ name: Database Migration
 
 on:
   push:
-    branches: [main, staging, demo]
+    branches: [main, staging]
     paths:
       - 'drizzle/**'
 
