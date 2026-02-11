@@ -92,7 +92,7 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
           <CardDescription>Acesse o sistema do seu condomínio</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
+          <form method="post" onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
             {actionData?.error && (
               <div className="bg-destructive/10 text-destructive rounded-xl px-3 py-2 text-sm">
                 {actionData.error}
@@ -154,12 +154,17 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
             Entrar com Google
           </Button>
 
-          <p className="text-muted-foreground mt-4 text-center text-sm">
-            Não tem conta?{' '}
-            <Link to="/register" className="text-primary hover:underline">
-              Criar conta
+          <div className="mt-4 grid gap-2 text-center text-sm">
+            <Link to="/forgot-password" className="text-primary hover:underline">
+              Esqueceu a palavra-passe?
             </Link>
-          </p>
+            <p className="text-muted-foreground">
+              Não tem conta?{' '}
+              <Link to="/register" className="text-primary hover:underline">
+                Criar conta
+              </Link>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

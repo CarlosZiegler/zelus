@@ -81,7 +81,7 @@ export default function RegisterPage({ actionData }: Route.ComponentProps) {
           <CardDescription>Comece a gerir o seu condomínio</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
+          <form method="post" onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
             {actionData?.error && (
               <div className="bg-destructive/10 text-destructive rounded-xl px-3 py-2 text-sm">
                 {actionData.error}
