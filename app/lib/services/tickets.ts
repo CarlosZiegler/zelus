@@ -1,7 +1,7 @@
 import { eq, and, or, sql, desc } from 'drizzle-orm'
 
 import { db } from '~/lib/db'
-import { tickets, ticketCategories, ticketEvents, fractions, user } from '~/lib/db/schema'
+import { tickets, ticketEvents, fractions, user } from '~/lib/db/schema'
 import { logAuditEvent } from './audit'
 
 export async function createTicket(
@@ -9,7 +9,7 @@ export async function createTicket(
   data: {
     title: string
     description: string
-    categoryId?: string | null
+    category?: string | null
     fractionId?: string | null
     priority?: 'urgent' | 'high' | 'medium' | 'low' | null
     private?: boolean
@@ -22,7 +22,7 @@ export async function createTicket(
       orgId,
       title: data.title,
       description: data.description,
-      categoryId: data.categoryId ?? null,
+      category: data.category ?? null,
       fractionId: data.fractionId ?? null,
       priority: data.priority ?? null,
       private: data.private ?? false,
@@ -48,7 +48,7 @@ export async function listTickets(
   filters?: {
     status?: string
     priority?: string
-    categoryId?: string
+    category?: string
     fractionId?: string
   },
 ) {
@@ -67,8 +67,8 @@ export async function listTickets(
       eq(tickets.priority, filters.priority as (typeof tickets.priority.enumValues)[number]),
     )
   }
-  if (filters?.categoryId) {
-    conditions.push(eq(tickets.categoryId, filters.categoryId))
+  if (filters?.category) {
+    conditions.push(eq(tickets.category, filters.category))
   }
   if (filters?.fractionId) {
     conditions.push(eq(tickets.fractionId, filters.fractionId))
@@ -82,12 +82,11 @@ export async function listTickets(
       priority: tickets.priority,
       private: tickets.private,
       createdAt: tickets.createdAt,
-      categoryLabel: ticketCategories.label,
+      category: tickets.category,
       creatorName: user.name,
       fractionLabel: fractions.label,
     })
     .from(tickets)
-    .leftJoin(ticketCategories, eq(tickets.categoryId, ticketCategories.id))
     .innerJoin(user, eq(tickets.createdBy, user.id))
     .leftJoin(fractions, eq(tickets.fractionId, fractions.id))
     .where(and(...conditions))
@@ -108,14 +107,12 @@ export async function getTicket(orgId: string, ticketId: string, userId: string)
       createdBy: tickets.createdBy,
       createdAt: tickets.createdAt,
       updatedAt: tickets.updatedAt,
-      categoryId: tickets.categoryId,
+      category: tickets.category,
       fractionId: tickets.fractionId,
-      categoryLabel: ticketCategories.label,
       creatorName: user.name,
       fractionLabel: fractions.label,
     })
     .from(tickets)
-    .leftJoin(ticketCategories, eq(tickets.categoryId, ticketCategories.id))
     .innerJoin(user, eq(tickets.createdBy, user.id))
     .leftJoin(fractions, eq(tickets.fractionId, fractions.id))
     .where(and(eq(tickets.id, ticketId), eq(tickets.orgId, orgId)))
@@ -136,7 +133,7 @@ export async function updateTicket(
   data: {
     title?: string
     description?: string
-    categoryId?: string | null
+    category?: string | null
     priority?: 'urgent' | 'high' | 'medium' | 'low' | null
     private?: boolean
   },

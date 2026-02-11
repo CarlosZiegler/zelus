@@ -15,7 +15,8 @@ import {
   SelectValue,
 } from '~/components/ui/select'
 import { orgContext, userContext } from '~/lib/auth/context'
-import { listCategories } from '~/lib/services/ticket-categories'
+import { listCategories } from '~/lib/services/categories'
+import { translateCategory } from '~/lib/category-labels'
 import { listTickets } from '~/lib/services/tickets'
 import type { Route } from './+types/index'
 
@@ -31,13 +32,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const filters = {
     status: url.searchParams.get('status') || undefined,
     priority: url.searchParams.get('priority') || undefined,
-    categoryId: url.searchParams.get('categoryId') || undefined,
+    category: url.searchParams.get('category') || undefined,
     fractionId: url.searchParams.get('fractionId') || undefined,
   }
 
   const [tickets, categories] = await Promise.all([
     listTickets(orgId, userId, filters),
-    listCategories(orgId),
+    listCategories(),
   ])
 
   return { tickets, categories }
@@ -105,7 +106,7 @@ export default function TicketsPage({ loaderData }: Route.ComponentProps) {
 
   const categoryItems = [
     { label: 'Todas as categorias', value: '_all' },
-    ...categories.map((c) => ({ label: c.label, value: c.id })),
+    ...categories.map((c) => ({ label: translateCategory(c.key), value: c.key })),
   ]
 
   return (
@@ -162,8 +163,8 @@ export default function TicketsPage({ loaderData }: Route.ComponentProps) {
 
         {categories.length > 0 && (
           <Select
-            value={searchParams.get('categoryId') ?? '_all'}
-            onValueChange={(v) => handleFilterChange('categoryId', v)}
+            value={searchParams.get('category') ?? '_all'}
+            onValueChange={(v) => handleFilterChange('category', v)}
             items={categoryItems}
           >
             <SelectTrigger size="sm">
@@ -230,8 +231,8 @@ export default function TicketsPage({ loaderData }: Route.ComponentProps) {
 
                       {/* Right side */}
                       <div className="flex shrink-0 items-center gap-3">
-                        {ticket.categoryLabel && (
-                          <Badge variant="outline">{ticket.categoryLabel}</Badge>
+                        {ticket.category && (
+                          <Badge variant="outline">{translateCategory(ticket.category)}</Badge>
                         )}
                         {ticket.fractionLabel && (
                           <span className="text-muted-foreground text-sm">

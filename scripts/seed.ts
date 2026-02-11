@@ -95,6 +95,35 @@ async function seed() {
     })
   }
 
+  // 6. Seed categories
+  const categoryKeys = [
+    'plumbing',
+    'sewage',
+    'gas',
+    'electricity',
+    'common_lighting',
+    'elevators',
+    'hvac',
+    'intercom',
+    'security',
+    'fire_safety',
+    'gardening',
+    'cleaning',
+    'pest_control',
+    'structural',
+    'roofing',
+    'parking',
+    'telecommunications',
+    'waste',
+    'painting',
+    'other',
+  ]
+
+  for (const key of categoryKeys) {
+    await db.insert(schema.categories).values({ key }).onConflictDoNothing()
+  }
+
+  console.log(`Seeded ${categoryKeys.length} categories`)
   console.log(`Created user: admin@zelus.dev (id: ${userId})`)
   console.log(`Created org: Condomínio Azulejo (id: ${orgId})`)
   console.log(`Created ${fractionLabels.length} fractions`)

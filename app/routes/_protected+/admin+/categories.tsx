@@ -3,7 +3,8 @@ import { z } from 'zod'
 
 import type { Route } from './+types/categories'
 import { orgContext, userContext } from '~/lib/auth/context'
-import { listCategories, createCategory, deleteCategory } from '~/lib/services/ticket-categories'
+import { listCategories, createCategory, deleteCategory } from '~/lib/services/categories'
+import { translateCategory } from '~/lib/category-labels'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import { Input } from '~/components/ui/input'
@@ -13,15 +14,16 @@ export function meta(_args: Route.MetaArgs) {
   return [{ title: 'Categorias — Zelus' }]
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
-  const { orgId } = context.get(orgContext)
-  const categories = await listCategories(orgId)
-
+export async function loader() {
+  const categories = await listCategories()
   return { categories }
 }
 
 const createSchema = z.object({
-  label: z.string().min(1, 'Nome é obrigatório'),
+  key: z
+    .string()
+    .min(1, 'Chave é obrigatória')
+    .regex(/^[a-z][a-z0-9_]*$/, 'Apenas letras minúsculas, números e underscore'),
 })
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -32,17 +34,21 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (data.intent === 'create') {
     const parsed = createSchema.safeParse(data)
-    if (!parsed.success) return { error: 'Dados inválidos.' }
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message ?? 'Dados inválidos.'
+      return { error: msg }
+    }
 
-    await createCategory(orgId, parsed.data.label, user.id)
+    const result = await createCategory(parsed.data.key, user.id, orgId)
+    if (!result) return { error: 'Categoria já existe.' }
     return { success: true }
   }
 
   if (data.intent === 'delete') {
-    const categoryId = String(data.categoryId)
+    const key = String(data.key)
 
     try {
-      await deleteCategory(orgId, categoryId, user.id)
+      await deleteCategory(key, user.id, orgId)
       return { success: true }
     } catch (e) {
       return { error: e instanceof Error ? e.message : 'Erro ao apagar categoria.' }
@@ -58,38 +64,33 @@ export default function CategoriesPage({ loaderData, actionData }: Route.Compone
   return (
     <div>
       <h1 className="text-lg font-semibold tracking-tight">Categorias</h1>
+
+      {actionData?.error && (
+        <div className="bg-destructive/10 text-destructive mt-4 rounded-xl px-4 py-3 text-sm">
+          {actionData.error}
+        </div>
+      )}
+      {actionData?.success && (
+        <div className="bg-primary/10 text-primary mt-4 rounded-xl px-4 py-3 text-sm">
+          Alterações guardadas.
+        </div>
+      )}
+
       <div className="mt-6 grid gap-4 lg:grid-cols-5">
-        {/* Create Category */}
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>Nova categoria</CardTitle>
             </CardHeader>
             <CardContent>
-              {actionData?.error && (
-                <div className="bg-destructive/10 text-destructive mb-3 rounded-xl px-3 py-2 text-sm">
-                  {actionData.error}
-                </div>
-              )}
-              {actionData?.success && (
-                <div className="bg-primary/10 text-primary mb-3 rounded-xl px-3 py-2 text-sm">
-                  Categoria criada.
-                </div>
-              )}
-
               <Form method="post" className="grid gap-3">
                 <input type="hidden" name="intent" value="create" />
                 <Field>
-                  <FieldLabel htmlFor="category-label">Nome</FieldLabel>
-                  <Input
-                    id="category-label"
-                    name="label"
-                    type="text"
-                    placeholder="Ex: Canalização"
-                    required
-                  />
+                  <FieldLabel htmlFor="cat-key">
+                    Chave <span className="text-destructive">*</span>
+                  </FieldLabel>
+                  <Input id="cat-key" name="key" type="text" placeholder="ex: plumbing" required />
                 </Field>
-
                 <Button type="submit" className="mt-1">
                   Criar
                 </Button>
@@ -98,7 +99,6 @@ export default function CategoriesPage({ loaderData, actionData }: Route.Compone
           </Card>
         </div>
 
-        {/* Existing Categories */}
         <div className="lg:col-span-3">
           <Card>
             <CardHeader>
@@ -111,15 +111,15 @@ export default function CategoriesPage({ loaderData, actionData }: Route.Compone
                 </p>
               ) : (
                 <div className="divide-y">
-                  {categories.map((category) => (
-                    <div
-                      key={category.id}
-                      className="flex items-center justify-between px-4 py-2.5"
-                    >
-                      <p className="text-sm font-medium">{category.label}</p>
+                  {categories.map((cat) => (
+                    <div key={cat.key} className="flex items-center justify-between px-4 py-2.5">
+                      <div>
+                        <p className="text-sm font-medium">{translateCategory(cat.key)}</p>
+                        <p className="text-muted-foreground text-sm">{cat.key}</p>
+                      </div>
                       <Form method="post">
                         <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="categoryId" value={category.id} />
+                        <input type="hidden" name="key" value={cat.key} />
                         <Button
                           type="submit"
                           variant="ghost"

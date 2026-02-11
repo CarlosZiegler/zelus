@@ -2,6 +2,11 @@ import { pgTable, text, timestamp, index } from 'drizzle-orm/pg-core'
 
 import { organization } from './auth'
 
+export const categories = pgTable('categories', {
+  key: text('key').primaryKey(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
 export const suppliers = pgTable(
   'suppliers',
   {

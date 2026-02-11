@@ -6,7 +6,8 @@ import { ArrowLeft02Icon } from '@hugeicons/core-free-icons'
 import type { Route } from './+types/new'
 import { orgContext, userContext } from '~/lib/auth/context'
 import { createTicket } from '~/lib/services/tickets'
-import { listCategories } from '~/lib/services/ticket-categories'
+import { listCategories } from '~/lib/services/categories'
+import { translateCategory } from '~/lib/category-labels'
 import { listFractions } from '~/lib/services/fractions'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
@@ -29,7 +30,7 @@ export function meta(_args: Route.MetaArgs) {
 export async function loader({ context }: Route.LoaderArgs) {
   const { orgId } = context.get(orgContext)
 
-  const [categories, fractions] = await Promise.all([listCategories(orgId), listFractions(orgId)])
+  const [categories, fractions] = await Promise.all([listCategories(), listFractions(orgId)])
 
   return { categories, fractions }
 }
@@ -37,7 +38,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 const createSchema = z.object({
   title: z.string().min(1, 'Título obrigatório'),
   description: z.string().min(1, 'Descrição obrigatória'),
-  categoryId: z.string().optional(),
+  category: z.string().optional(),
   fractionId: z.string().optional(),
   priority: z.enum(['urgent', 'high', 'medium', 'low']).optional(),
   private: z.literal('on').optional(),
@@ -61,7 +62,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       {
         title: parsed.data.title,
         description: parsed.data.description,
-        categoryId: parsed.data.categoryId || null,
+        category: parsed.data.category || null,
         fractionId: parsed.data.fractionId || null,
         priority: parsed.data.priority ?? null,
         private: parsed.data.private === 'on',
@@ -82,7 +83,7 @@ export default function NewTicketPage({ loaderData, actionData }: Route.Componen
 
   const categoryItems = [
     { label: '— Selecionar —', value: '' },
-    ...categories.map((c) => ({ label: c.label, value: c.id })),
+    ...categories.map((c) => ({ label: translateCategory(c.key), value: c.key })),
   ]
 
   const fractionItems = [
@@ -127,7 +128,7 @@ export default function NewTicketPage({ loaderData, actionData }: Route.Componen
 
             <Field>
               <FieldLabel htmlFor="categoryId">Categoria</FieldLabel>
-              <Select name="categoryId" defaultValue="" items={categoryItems}>
+              <Select name="category" defaultValue="" items={categoryItems}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>

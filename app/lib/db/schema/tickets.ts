@@ -3,21 +3,6 @@ import { pgTable, text, timestamp, integer, boolean, index } from 'drizzle-orm/p
 import { organization, user } from './auth'
 import { fractions } from './fractions'
 
-export const ticketCategories = pgTable(
-  'ticket_categories',
-  {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    orgId: text('org_id')
-      .notNull()
-      .references(() => organization.id),
-    label: text('label').notNull(),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-  },
-  (t) => [index('ticket_categories_org_idx').on(t.orgId)],
-)
-
 export const tickets = pgTable(
   'tickets',
   {
@@ -28,7 +13,7 @@ export const tickets = pgTable(
       .notNull()
       .references(() => organization.id),
     fractionId: text('fraction_id').references(() => fractions.id),
-    categoryId: text('category_id').references(() => ticketCategories.id),
+    category: text('category'),
     createdBy: text('created_by')
       .notNull()
       .references(() => user.id),

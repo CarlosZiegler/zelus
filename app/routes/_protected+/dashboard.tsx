@@ -1,11 +1,17 @@
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Ticket02Icon, Alert02Icon, Building06Icon } from '@hugeicons/core-free-icons'
+import {
+  Ticket02Icon,
+  Alert02Icon,
+  Building06Icon,
+  TruckDeliveryIcon,
+  WrenchIcon,
+} from '@hugeicons/core-free-icons'
 
 import type { Route } from './+types/dashboard'
 import { orgContext } from '~/lib/auth/context'
 import { CardLink } from '~/components/brand/card-link'
 import { db } from '~/lib/db'
-import { tickets, fractions } from '~/lib/db/schema'
+import { tickets, fractions, suppliers, maintenanceRecords } from '~/lib/db/schema'
 import { eq, and, count } from 'drizzle-orm'
 
 export function meta(_args: Route.MetaArgs) {
@@ -15,20 +21,28 @@ export function meta(_args: Route.MetaArgs) {
 export async function loader({ context }: Route.LoaderArgs) {
   const { orgId } = context.get(orgContext)
 
-  const [[ticketCount], [openTickets], [fractionCount]] = await Promise.all([
-    db.select({ count: count() }).from(tickets).where(eq(tickets.orgId, orgId)),
-    db
-      .select({ count: count() })
-      .from(tickets)
-      .where(and(eq(tickets.orgId, orgId), eq(tickets.status, 'open'))),
-    db.select({ count: count() }).from(fractions).where(eq(fractions.orgId, orgId)),
-  ])
+  const [[ticketCount], [openTickets], [fractionCount], [supplierCount], [maintenanceCount]] =
+    await Promise.all([
+      db.select({ count: count() }).from(tickets).where(eq(tickets.orgId, orgId)),
+      db
+        .select({ count: count() })
+        .from(tickets)
+        .where(and(eq(tickets.orgId, orgId), eq(tickets.status, 'open'))),
+      db.select({ count: count() }).from(fractions).where(eq(fractions.orgId, orgId)),
+      db.select({ count: count() }).from(suppliers).where(eq(suppliers.orgId, orgId)),
+      db
+        .select({ count: count() })
+        .from(maintenanceRecords)
+        .where(eq(maintenanceRecords.orgId, orgId)),
+    ])
 
   return {
     stats: {
       totalTickets: ticketCount?.count ?? 0,
       openTickets: openTickets?.count ?? 0,
       totalFractions: fractionCount?.count ?? 0,
+      totalSuppliers: supplierCount?.count ?? 0,
+      totalMaintenance: maintenanceCount?.count ?? 0,
     },
   }
 }
@@ -53,6 +67,18 @@ export default function DashboardPage({ loaderData }: Route.ComponentProps) {
           value={stats.totalFractions}
           icon={Building06Icon}
           href="/fractions"
+        />
+        <StatTile
+          label="Fornecedores"
+          value={stats.totalSuppliers}
+          icon={TruckDeliveryIcon}
+          href="/suppliers"
+        />
+        <StatTile
+          label="Manutenções"
+          value={stats.totalMaintenance}
+          icon={WrenchIcon}
+          href="/maintenance"
         />
       </div>
     </div>

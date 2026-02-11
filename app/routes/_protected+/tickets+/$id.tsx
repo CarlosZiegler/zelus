@@ -15,7 +15,8 @@ import { getFractionRole } from '~/lib/auth/rbac'
 import { getTicket, updateTicket, updateTicketStatus } from '~/lib/services/tickets'
 import { addComment, getTicketTimeline } from '~/lib/services/ticket-comments'
 import { deleteAttachment } from '~/lib/services/ticket-attachments'
-import { listCategories } from '~/lib/services/ticket-categories'
+import { listCategories } from '~/lib/services/categories'
+import { translateCategory } from '~/lib/category-labels'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import { Input } from '~/components/ui/input'
@@ -54,7 +55,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
   const [timeline, categories] = await Promise.all([
     getTicketTimeline(orgId, params.id),
-    listCategories(orgId),
+    listCategories(),
   ])
 
   // canManage: org_admin OR fraction_owner_admin for the ticket's fraction
@@ -111,7 +112,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 
     const title = formData.get('title') as string
     const description = formData.get('description') as string
-    const categoryId = formData.get('categoryId') as string
+    const category = formData.get('category') as string
     const priority = formData.get('priority') as string
     const isPrivate = formData.get('private') === 'on'
 
@@ -123,7 +124,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       {
         title,
         description: description || undefined,
-        categoryId: categoryId || null,
+        category: category || null,
         priority: (priority as 'urgent' | 'high' | 'medium' | 'low') || null,
         private: isPrivate,
       },
@@ -160,7 +161,7 @@ export default function TicketDetailPage({ loaderData, actionData }: Route.Compo
 
   const editCategoryItems = [
     { label: '— Nenhuma —', value: '' },
-    ...categories.map((c) => ({ label: c.label, value: c.id })),
+    ...categories.map((c) => ({ label: translateCategory(c.key), value: c.key })),
   ]
 
   const formattedDate = new Date(ticket.createdAt).toLocaleDateString('pt-PT', {
@@ -290,8 +291,8 @@ export default function TicketDetailPage({ loaderData, actionData }: Route.Compo
                 <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground text-sm">Categoria</dt>
                   <dd>
-                    {ticket.categoryLabel ? (
-                      <Badge variant="secondary">{ticket.categoryLabel}</Badge>
+                    {ticket.category ? (
+                      <Badge variant="secondary">{translateCategory(ticket.category)}</Badge>
                     ) : (
                       <span className="text-muted-foreground text-sm">&mdash;</span>
                     )}
@@ -398,10 +399,10 @@ export default function TicketDetailPage({ loaderData, actionData }: Route.Compo
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="edit-categoryId">Categoria</FieldLabel>
+                    <FieldLabel htmlFor="edit-category">Categoria</FieldLabel>
                     <Select
-                      name="categoryId"
-                      defaultValue={ticket.categoryId ?? ''}
+                      name="category"
+                      defaultValue={ticket.category ?? ''}
                       items={editCategoryItems}
                     >
                       <SelectTrigger className="w-full">
