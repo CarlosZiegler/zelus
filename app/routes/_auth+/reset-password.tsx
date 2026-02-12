@@ -1,7 +1,4 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMemo } from 'react'
-import { Controller, useForm } from 'react-hook-form'
-import { Link, redirect, useLocation, useNavigation, useSubmit } from 'react-router'
+import { data, Form, Link, redirect, useNavigation, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import type { Route } from './+types/reset-password'
@@ -12,27 +9,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Field, FieldError, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { auth } from '~/lib/auth/auth.server'
+import { validateForm } from '~/lib/forms'
 
 const schema = z.object({
   token: z.string().min(1, 'Token inválido'),
   newPassword: z.string().min(8, 'Mínimo 8 caracteres'),
 })
 
-type Values = z.infer<typeof schema>
-
 export function meta(_args: Route.MetaArgs) {
   return [{ title: 'Redefinir palavra-passe — Zelus' }]
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData()
-  const parsed = schema.safeParse(Object.fromEntries(formData))
+  const result = validateForm(await request.formData(), schema)
+  if ('errors' in result) return data({ errors: result.errors }, { status: 400 })
 
-  if (!parsed.success) {
-    return { error: 'Dados inválidos.' }
-  }
-
-  const { token, newPassword } = parsed.data
+  const { token, newPassword } = result.data
 
   const res = await auth.api.resetPassword({
     body: { token, newPassword },
@@ -42,31 +34,28 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    return { error: body?.message || 'Não foi possível redefinir a palavra‑passe.' }
+    return data(
+      { error: body?.message || 'Não foi possível redefinir a palavra‑passe.' },
+      { status: 400 },
+    )
   }
 
-  return redirect('/login?reset=1')
+  const headers = new Headers()
+  for (const cookie of res.headers.getSetCookie()) {
+    headers.append('set-cookie', cookie)
+  }
+
+  return redirect('/login?reset=1', { headers })
 }
 
 export default function ResetPasswordPage({ actionData }: Route.ComponentProps) {
   const navigation = useNavigation()
-  const submit = useSubmit()
-  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const isSubmitting = navigation.state === 'submitting'
 
-  const tokenFromUrl = useMemo(() => {
-    const sp = new URLSearchParams(location.search)
-    return sp.get('token') || ''
-  }, [location.search])
-
-  const form = useForm<Values>({
-    resolver: zodResolver(schema),
-    defaultValues: { token: tokenFromUrl, newPassword: '' },
-  })
-
-  function onValid(_data: Values, e?: React.BaseSyntheticEvent) {
-    if (e?.target) submit(e.target, { method: 'post' })
-  }
+  const tokenFromUrl = searchParams.get('token') || ''
+  const errors = actionData && 'errors' in actionData ? actionData.errors : null
+  const error = actionData && 'error' in actionData ? actionData.error : null
 
   return (
     <div className="flex min-h-svh items-center justify-center px-4">
@@ -80,53 +69,42 @@ export default function ResetPasswordPage({ actionData }: Route.ComponentProps) 
           <CardDescription>Escolha uma nova palavra‑passe para a sua conta.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form method="post" onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
-            {actionData?.error && (
+          <Form method="post" className="grid gap-4">
+            {error && (
               <div className="bg-destructive/10 text-destructive rounded-xl px-3 py-2 text-sm">
-                {actionData.error}
+                {error}
               </div>
             )}
 
-            <Controller
-              name="token"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Token</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    placeholder="Cole o token recebido por e-mail"
-                    autoComplete="one-time-code"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
+            <Field>
+              <FieldLabel htmlFor="token">Token</FieldLabel>
+              <Input
+                id="token"
+                name="token"
+                defaultValue={tokenFromUrl}
+                placeholder="Cole o token recebido por e-mail"
+                autoComplete="one-time-code"
+                required
+              />
+              {errors?.token && <FieldError>{errors.token}</FieldError>}
+            </Field>
 
-            <Controller
-              name="newPassword"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Nova palavra-passe</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    type="password"
-                    autoComplete="new-password"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
+            <Field>
+              <FieldLabel htmlFor="newPassword">Nova palavra-passe</FieldLabel>
+              <Input
+                id="newPassword"
+                name="newPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+              />
+              {errors?.newPassword && <FieldError>{errors.newPassword}</FieldError>}
+            </Field>
 
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'A redefinir…' : 'Redefinir palavra‑passe'}
             </Button>
-          </form>
+          </Form>
 
           <p className="text-muted-foreground mt-4 text-center text-sm">
             <Link to="/login" className="text-primary hover:underline">

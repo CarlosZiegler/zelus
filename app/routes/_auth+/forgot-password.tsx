@@ -1,6 +1,4 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Controller, useForm } from 'react-hook-form'
-import { Link, redirect, useNavigation, useSubmit } from 'react-router'
+import { data, Form, Link, redirect, useNavigation, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import type { Route } from './+types/forgot-password'
@@ -11,30 +9,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Field, FieldError, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { auth } from '~/lib/auth/auth.server'
+import { validateForm } from '~/lib/forms'
 
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
 })
-
-type Values = z.infer<typeof schema>
 
 export function meta(_args: Route.MetaArgs) {
   return [{ title: 'Recuperar palavra-passe — Zelus' }]
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData()
-  const parsed = schema.safeParse(Object.fromEntries(formData))
+  const result = validateForm(await request.formData(), schema)
+  if ('errors' in result) return data({ errors: result.errors }, { status: 400 })
 
-  // Always return a generic success message to avoid leaking whether an email exists.
-  if (!parsed.success) {
-    return { ok: true }
-  }
-
-  const { email } = parsed.data
+  const { email } = result.data
 
   try {
-    // Note: In production you must wire an email provider (Resend) so users actually receive the link.
+    // Never reveal whether an email exists.
     await auth.api.requestPasswordReset({
       body: {
         email,
@@ -51,19 +43,11 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function ForgotPasswordPage({ actionData }: Route.ComponentProps) {
   const navigation = useNavigation()
-  const submit = useSubmit()
+  const [searchParams] = useSearchParams()
   const isSubmitting = navigation.state === 'submitting'
-  const sent =
-    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('sent') : null
 
-  const form = useForm<Values>({
-    resolver: zodResolver(schema),
-    defaultValues: { email: '' },
-  })
-
-  function onValid(_data: Values, e?: React.BaseSyntheticEvent) {
-    if (e?.target) submit(e.target, { method: 'post' })
-  }
+  const sent = searchParams.get('sent')
+  const errors = actionData && 'errors' in actionData ? actionData.errors : null
 
   return (
     <div className="flex min-h-svh items-center justify-center px-4">
@@ -82,30 +66,23 @@ export default function ForgotPasswordPage({ actionData }: Route.ComponentProps)
         </CardHeader>
         <CardContent>
           {!sent && (
-            <form method="post" onSubmit={form.handleSubmit(onValid)} className="grid gap-4">
-              {/* intentionally no error message (avoid leaking account existence) */}
-              <Controller
-                name="email"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={field.name}>E-mail</FieldLabel>
-                    <Input
-                      {...field}
-                      id={field.name}
-                      type="email"
-                      placeholder="nome@exemplo.com"
-                      autoComplete="email"
-                      aria-invalid={fieldState.invalid}
-                    />
-                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                  </Field>
-                )}
-              />
+            <Form method="post" className="grid gap-4">
+              <Field>
+                <FieldLabel htmlFor="email">E-mail</FieldLabel>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="nome@exemplo.com"
+                  autoComplete="email"
+                  required
+                />
+                {errors?.email && <FieldError>{errors.email}</FieldError>}
+              </Field>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'A enviar…' : 'Enviar link'}
               </Button>
-            </form>
+            </Form>
           )}
 
           <p className="text-muted-foreground mt-4 text-center text-sm">

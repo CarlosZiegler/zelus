@@ -1,6 +1,4 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Controller, useForm } from 'react-hook-form'
-import { redirect, useNavigation, useSubmit } from 'react-router'
+import { data, Form, redirect, useNavigation } from 'react-router'
 import { z } from 'zod'
 
 import type { Route } from './+types/settings.account'
@@ -9,13 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Field, FieldError, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { auth } from '~/lib/auth/auth.server'
+import { validateForm } from '~/lib/forms'
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Obrigatório'),
   newPassword: z.string().min(8, 'Mínimo 8 caracteres'),
 })
-
-type ChangePasswordValues = z.infer<typeof changePasswordSchema>
 
 const deleteAccountSchema = z.object({
   password: z.string().min(1, 'Obrigatório'),
@@ -25,7 +22,14 @@ const deleteAccountSchema = z.object({
     .refine((value) => value === 'APAGAR', { message: 'Digite APAGAR para confirmar' }),
 })
 
-type DeleteAccountValues = z.input<typeof deleteAccountSchema>
+type ActionData =
+  | { intent: 'changePassword'; errors: Record<string, string> }
+  | { intent: 'changePassword'; error: string }
+  | { intent: 'changePassword'; success: string }
+  | { intent: 'deleteAccount'; errors: Record<string, string> }
+  | { intent: 'deleteAccount'; error: string }
+  | { intent: 'deleteAccount'; success: string }
+  | { error: string }
 
 export function meta(_args: Route.MetaArgs) {
   return [{ title: 'Conta — Zelus' }]
@@ -36,13 +40,17 @@ export async function action({ request }: Route.ActionArgs) {
   const intent = String(formData.get('_intent') || '')
 
   if (intent === 'changePassword') {
-    const parsed = changePasswordSchema.safeParse(Object.fromEntries(formData))
-    if (!parsed.success) return { error: 'Dados inválidos.' }
+    const result = validateForm(formData, changePasswordSchema)
+    if ('errors' in result) {
+      return data({ intent: 'changePassword', errors: result.errors } satisfies ActionData, {
+        status: 400,
+      })
+    }
 
     const res = await auth.api.changePassword({
       body: {
-        currentPassword: parsed.data.currentPassword,
-        newPassword: parsed.data.newPassword,
+        currentPassword: result.data.currentPassword,
+        newPassword: result.data.newPassword,
         revokeOtherSessions: true,
       },
       asResponse: true,
@@ -51,7 +59,13 @@ export async function action({ request }: Route.ActionArgs) {
 
     if (!res.ok) {
       const body = await res.json().catch(() => null)
-      return { error: body?.message || 'Não foi possível alterar a palavra‑passe.' }
+      return data(
+        {
+          intent: 'changePassword',
+          error: body?.message || 'Não foi possível alterar a palavra‑passe.',
+        } satisfies ActionData,
+        { status: 400 },
+      )
     }
 
     const headers = new Headers()
@@ -59,16 +73,26 @@ export async function action({ request }: Route.ActionArgs) {
       headers.append('set-cookie', cookie)
     }
 
-    return Response.json({ success: 'Palavra‑passe alterada com sucesso.' }, { headers })
+    return data(
+      {
+        intent: 'changePassword',
+        success: 'Palavra‑passe alterada com sucesso.',
+      } satisfies ActionData,
+      { headers },
+    )
   }
 
   if (intent === 'deleteAccount') {
-    const parsed = deleteAccountSchema.safeParse(Object.fromEntries(formData))
-    if (!parsed.success) return { error: 'Dados inválidos.' }
+    const result = validateForm(formData, deleteAccountSchema)
+    if ('errors' in result) {
+      return data({ intent: 'deleteAccount', errors: result.errors } satisfies ActionData, {
+        status: 400,
+      })
+    }
 
     const res = await auth.api.deleteUser({
       body: {
-        password: parsed.data.password,
+        password: result.data.password,
         callbackURL: '/',
       },
       asResponse: true,
@@ -77,7 +101,13 @@ export async function action({ request }: Route.ActionArgs) {
 
     if (!res.ok) {
       const body = await res.json().catch(() => null)
-      return { error: body?.message || 'Não foi possível apagar a conta.' }
+      return data(
+        {
+          intent: 'deleteAccount',
+          error: body?.message || 'Não foi possível apagar a conta.',
+        } satisfies ActionData,
+        { status: 400 },
+      )
     }
 
     const headers = new Headers()
@@ -88,26 +118,25 @@ export async function action({ request }: Route.ActionArgs) {
     return redirect('/', { headers })
   }
 
-  return { error: 'Ação inválida.' }
+  return data({ error: 'Ação inválida.' } satisfies ActionData, { status: 400 })
 }
 
 export default function AccountSettingsPage({ actionData }: Route.ComponentProps) {
   const navigation = useNavigation()
-  const submit = useSubmit()
   const submittingIntent =
     navigation.state === 'submitting' ? String(navigation.formData?.get('_intent') || '') : ''
   const isChangingPassword = submittingIntent === 'changePassword'
   const isDeletingAccount = submittingIntent === 'deleteAccount'
 
-  const changeForm = useForm<ChangePasswordValues>({
-    resolver: zodResolver(changePasswordSchema),
-    defaultValues: { currentPassword: '', newPassword: '' },
-  })
+  const intent = actionData && 'intent' in actionData ? actionData.intent : null
+  const globalError = actionData && 'error' in actionData ? actionData.error : null
 
-  const deleteForm = useForm<DeleteAccountValues>({
-    resolver: zodResolver(deleteAccountSchema),
-    defaultValues: { password: '', confirm: '' },
-  })
+  const changeErrors =
+    intent === 'changePassword' && actionData && 'errors' in actionData ? actionData.errors : null
+  const deleteErrors =
+    intent === 'deleteAccount' && actionData && 'errors' in actionData ? actionData.errors : null
+
+  const success = actionData && 'success' in actionData ? actionData.success : null
 
   return (
     <div className="space-y-6">
@@ -118,14 +147,14 @@ export default function AccountSettingsPage({ actionData }: Route.ComponentProps
         </p>
       </header>
 
-      {actionData && 'error' in actionData && typeof actionData.error === 'string' && (
+      {globalError && (
         <div className="bg-destructive/10 text-destructive rounded-xl px-3 py-2 text-sm">
-          {actionData.error}
+          {globalError}
         </div>
       )}
-      {actionData && 'success' in actionData && typeof actionData.success === 'string' && (
+      {typeof success === 'string' && (
         <div className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
-          {actionData.success}
+          {success}
         </div>
       )}
 
@@ -135,55 +164,39 @@ export default function AccountSettingsPage({ actionData }: Route.ComponentProps
           <CardDescription>Recomendado: use uma palavra‑passe forte e única.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form
-            method="post"
-            onSubmit={changeForm.handleSubmit(
-              (_d, e) => e?.target && submit(e.target, { method: 'post' }),
-            )}
-            className="grid gap-4"
-          >
+          <Form method="post" className="grid gap-4">
             <input type="hidden" name="_intent" value="changePassword" />
 
-            <Controller
-              name="currentPassword"
-              control={changeForm.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Palavra-passe atual</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    type="password"
-                    autoComplete="current-password"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
+            <Field>
+              <FieldLabel htmlFor="currentPassword">Palavra-passe atual</FieldLabel>
+              <Input
+                id="currentPassword"
+                name="currentPassword"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+              {changeErrors?.currentPassword && (
+                <FieldError>{changeErrors.currentPassword}</FieldError>
               )}
-            />
+            </Field>
 
-            <Controller
-              name="newPassword"
-              control={changeForm.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Nova palavra-passe</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    type="password"
-                    autoComplete="new-password"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
+            <Field>
+              <FieldLabel htmlFor="newPassword">Nova palavra-passe</FieldLabel>
+              <Input
+                id="newPassword"
+                name="newPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+              />
+              {changeErrors?.newPassword && <FieldError>{changeErrors.newPassword}</FieldError>}
+            </Field>
 
             <Button type="submit" disabled={isChangingPassword}>
               {isChangingPassword ? 'A guardar…' : 'Guardar'}
             </Button>
-          </form>
+          </Form>
         </CardContent>
       </Card>
 
@@ -196,55 +209,37 @@ export default function AccountSettingsPage({ actionData }: Route.ComponentProps
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form
-            method="post"
-            onSubmit={deleteForm.handleSubmit(
-              (_d, e) => e?.target && submit(e.target, { method: 'post' }),
-            )}
-            className="grid gap-4"
-          >
+          <Form method="post" className="grid gap-4">
             <input type="hidden" name="_intent" value="deleteAccount" />
 
-            <Controller
-              name="password"
-              control={deleteForm.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Palavra-passe</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    type="password"
-                    autoComplete="current-password"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
+            <Field>
+              <FieldLabel htmlFor="password">Palavra-passe</FieldLabel>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+              {deleteErrors?.password && <FieldError>{deleteErrors.password}</FieldError>}
+            </Field>
 
-            <Controller
-              name="confirm"
-              control={deleteForm.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Confirmação</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    placeholder="Digite APAGAR"
-                    autoComplete="off"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
+            <Field>
+              <FieldLabel htmlFor="confirm">Confirmação</FieldLabel>
+              <Input
+                id="confirm"
+                name="confirm"
+                placeholder="Digite APAGAR"
+                autoComplete="off"
+                required
+              />
+              {deleteErrors?.confirm && <FieldError>{deleteErrors.confirm}</FieldError>}
+            </Field>
 
             <Button type="submit" variant="destructive" disabled={isDeletingAccount}>
               {isDeletingAccount ? 'A apagar…' : 'Apagar conta'}
             </Button>
-          </form>
+          </Form>
         </CardContent>
       </Card>
     </div>
